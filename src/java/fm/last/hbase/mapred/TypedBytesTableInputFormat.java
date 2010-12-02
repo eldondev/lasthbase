@@ -32,10 +32,8 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.filter.RowFilterInterface;
-import org.apache.hadoop.hbase.filter.StopRowFilter;
-import org.apache.hadoop.hbase.filter.WhileMatchRowFilter;
-import org.apache.hadoop.hbase.io.RowResult;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.WhileMatchFilter;
 import org.apache.hadoop.hbase.mapred.TableSplit;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -61,7 +59,7 @@ public class TypedBytesTableInputFormat implements InputFormat<TypedBytesWritabl
   private byte[][] inputColumns;
   private HTable table;
   private TableRecordReader tableRecordReader;
-  private RowFilterInterface rowFilter;
+  private Filter rowFilter;
 
   /**
    * Iterate over an HBase table data, return (Text, RowResult) pairs
@@ -70,7 +68,7 @@ public class TypedBytesTableInputFormat implements InputFormat<TypedBytesWritabl
     private byte[] startRow;
     private byte[] endRow;
     private byte[] lastRow;
-    private RowFilterInterface trrRowFilter;
+    private Filter trrRowFilter;
     private ResultScanner scanner;
     private HTable htable;
     private byte[][] trrInputColumns;
@@ -84,10 +82,8 @@ public class TypedBytesTableInputFormat implements InputFormat<TypedBytesWritabl
     public void restart(byte[] firstRow) throws IOException {
       if ((endRow != null) && (endRow.length > 0)) {
         if (trrRowFilter != null) {
-          final Set<RowFilterInterface> rowFiltersSet = new HashSet<RowFilterInterface>();
-          rowFiltersSet.add(new WhileMatchRowFilter(new StopRowFilter(endRow)));
-          rowFiltersSet.add(trrRowFilter);
-          Scan scan = new Scan(startRow);
+          final Set<Filter> rowFiltersSet = new HashSet<Filter>();
+          Scan scan = new Scan(startRow,endRow);
           scan.addColumns(trrInputColumns);
           this.scanner = this.htable.getScanner(scan);
         } else {
@@ -141,9 +137,9 @@ public class TypedBytesTableInputFormat implements InputFormat<TypedBytesWritabl
     }
 
     /**
-     * @param rowFilter the {@link RowFilterInterface} to be used.
+     * @param rowFilter the {@link Filter} to be used.
      */
-    public void setRowFilter(RowFilterInterface rowFilter) {
+    public void setRowFilter(Filter rowFilter) {
       this.trrRowFilter = rowFilter;
     }
 
@@ -243,7 +239,7 @@ public class TypedBytesTableInputFormat implements InputFormat<TypedBytesWritabl
     }
     setInputColumns(m_cols);
     try {
-      setHTable(new HTable(new HBaseConfiguration(job), tableNames[0].getName()));
+      setHTable(new HTable(HBaseConfiguration.create(job), tableNames[0].getName()));
     } catch (Exception e) {
       LOG.error(StringUtils.stringifyException(e));
     }
@@ -368,11 +364,11 @@ public class TypedBytesTableInputFormat implements InputFormat<TypedBytesWritabl
   }
 
   /**
-   * Allows subclasses to set the {@link RowFilterInterface} to be used.
+   * Allows subclasses to set the {@link Filter} to be used.
    * 
    * @param rowFilter
    */
-  protected void setRowFilter(RowFilterInterface rowFilter) {
+  protected void setRowFilter(Filter rowFilter) {
     this.rowFilter = rowFilter;
   }
 }
